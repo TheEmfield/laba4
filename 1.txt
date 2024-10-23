@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# Проверка, что передан аргумент с именем исходного файла
+if [ $# -eq 0 ]; then
+    echo "Ошибка: укажите исходный файл программы."
+    exit 1
+fi
+
+# Путь к исходному файлу
+SOURCE_FILE=$1
+
+# Проверка существования файла
+if [ ! -f "$SOURCE_FILE" ]; then
+    echo "Ошибка: файл $SOURCE_FILE не найден."
+    exit 1
+fi
+
+# Массив с опциями оптимизации
+OPT_FLAGS=(
+    "-O0"
+    "-Os"
+    "-O1"
+    "-O2"
+    "-O3"
+    "-O2 -march=native"
+    "-O3 -march=native"
+    "-O2 -march=native -funroll-loops"
+    "-O3 -march=native -funroll-loops"
+)
+
+# Цикл по всем опциям
+for OPT in "${OPT_FLAGS[@]}"; do
+    # Создание уникального имени исполняемого файла
+    OUTPUT_FILE="output_${OPT// /_}.out"
+    
+    # Компиляция
+    echo "Компиляция с флагами: $OPT"
+    g++ $SOURCE_FILE -o $OUTPUT_FILE $OPT -Wall
+    
+    # Проверка успешной компиляции
+    if [ $? -eq 0 ]; then
+        echo "Запуск программы $OUTPUT_FILE:"
+        
+        # Использование встроенной time для измерения времени выполнения программы
+        time ./$OUTPUT_FILE
+        
+        # Вычисление размера исполняемого файла в байтах
+        FILE_SIZE=$(du -b $OUTPUT_FILE | cut -f1)
+        
+        # Вывод информации
+        echo "Опции оптимизации: $OPT"
+        echo "Размер исполняемого файла: ${FILE_SIZE} байт"
+        echo "========================="
+        
+        # Проверка минимального времени выполнения для -O0
+        if [[ "$OPT" == "-O0" ]]; then
+            EXECUTION_TIME=$( { time ./$OUTPUT_FILE; } 2>&1 | grep real | awk '{print $2}')
+            if [[ $(echo "$EXECUTION_TIME < 20" | bc -l) -eq 1 ]]; then
+                echo "Ошибка: программа должна работать не менее 20 секунд при -O0 оптимизации."
+                exit 1
+            fi
+        fi
+    else
+        echo "Ошибка компиляции с флагами $OPT"
+    fi
+done
