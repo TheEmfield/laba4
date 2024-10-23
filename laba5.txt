@@ -1,0 +1,43 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+    echo "Ошибка: укажите исходный файл программы."
+    exit 1
+fi
+
+file=$1
+
+# Проверка существования файла
+if [ ! -f "$file" ]; then
+    echo "Ошибка: файл $file не найден."
+    exit 1
+fi
+
+OPT_FLAGS=(
+    "-O0"
+    "-Os"
+    "-O1"
+    "-O2"
+    "-O3"
+    "-O2 -march=native"
+    "-O3 -march=native"
+    "-O2 -march=native -funroll-loops"
+    "-O3 -march=native -funroll-loops"
+)
+
+for OPT in "${OPT_FLAGS[@]}"; do
+    outputfile="output.out"
+    
+    g++ $file -o $output $OPT -Wall
+    
+    if [ $? -eq 0 ]; then
+	
+	$OPT >> benchmark.txt
+	time ./$output >> benchmark.txt
+	echo -n "Занимаемое место: " >> benchmark.txt
+	du -b test | grep -Eo "[0-9]+" >> benchmark.txt
+	
+    else
+        echo "Ошибка компиляции с флагами $OPT"
+    fi
+done
